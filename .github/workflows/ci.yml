@@ -34,3 +34,18 @@ jobs:
 
     - name: Trivy Image Scan
       run: trivy image project7:${{ github.sha }}
+
+    - name: Login to ECR
+      run: |
+        aws ecr get-login-password \
+        | docker login \
+        --username AWS \
+        --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+    - name: Push Image
+      run: |
+        docker tag project7:${{ github.sha }} \
+        ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/project7:${{ github.sha }}
+        docker push \
+        ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/project7:${{ github.sha }}
+
