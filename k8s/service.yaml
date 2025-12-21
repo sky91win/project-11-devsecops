@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: project11-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: project11
   ports:
-  - port: 80
-    targetPort: 8080
+    - port: 80
+      targetPort: 8080
