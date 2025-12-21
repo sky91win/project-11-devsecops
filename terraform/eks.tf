@@ -2,7 +2,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "19.15.3"
 
-  cluster_name    = "project9-eks"
+  cluster_name    = "project10-eks"
   cluster_version = "1.29"
 
   vpc_id     = module.vpc.vpc_id
@@ -16,7 +16,10 @@ module "eks" {
       desired_size   = 1
       min_size       = 1
       max_size       = 1
-      instance_types = ["t3.micro"]
+
+      instance_types = ["m7i-flex.large"]
+
+      disk_size = 30   # 👈 30 GB EBS storage
     }
   }
 }
