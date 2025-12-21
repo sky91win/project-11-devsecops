@@ -3,49 +3,75 @@ name: CI Pipeline
 on:
   workflow_dispatch:
 
+# jname: Project-11 CI/CD (GitHub Actions)
+
+# on:
+#   push:
+#     branches: [ "main" ]
+
 jobs:
-  ci:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-    - name: Setup Node
-      uses: actions/setup-node@v3
+    # ---------------- BUILD ----------------
+    - name: Setup Java
+      uses: actions/setup-java@v4
       with:
-        node-version: 18
+        java-version: '17'
+        distribution: 'temurin'
 
-    - name: Install Dependencies
-      run: npm install
+    - name: Build with Maven
+      run: mvn clean package
       working-directory: app
 
+    # ---------------- SONAR ----------------
     - name: SonarQube Scan
       run: |
-        sonar-scanner \
-        -Dsonar.projectKey=project7 \
-        -Dsonar.host.url=${{ secrets.SONAR_URL }} \
-        -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+        mvn sonar:sonar \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+      working-directory: app
 
-    - name: Trivy FS Scan
-      run: trivy fs .
+    # ---------------- DOCKER ----------------
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Docker Build
-      run: docker build -t project7:${{ github.sha }} .
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
 
+    - name: Build & Push Docker Image
+      run: |
+        docker build -t ${{ secrets.ECR_REPO }} .
+        docker tag ${{ secrets.ECR_REPO }}:latest \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPO }}:latest
+        docker push \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPO }}:latest
+      working-directory: app
+
+    # ---------------- TRIVY ----------------
     - name: Trivy Image Scan
-      run: trivy image project7:${{ github.sha }}
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPO }}:latest
+        severity: HIGH,CRITICAL
 
-    # - name: Login to ECR
-    #   run: |
-    #     aws ecr get-login-password \
-    #     | docker login \
-    #     --username AWS \
-    #     --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+    # ---------------- DEPLOY ----------------
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig \
+          --name ${{ secrets.EKS_CLUSTER }} \
+          --region ${{ secrets.AWS_REGION }}
 
-    # - name: Push Image
-    #   run: |
-    #     docker tag project7:${{ github.sha }} \
-    #     ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/project7:${{ github.sha }}
-    #     docker push \
-    #     ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/project7:${{ github.sha }}
+    - name: Deploy to EKS
+      run: |
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
 
