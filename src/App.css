@@ -1,0 +1,26 @@
+.app {
+  background-color: #111;
+  min-height: 100vh;
+  color: white;
+  text-align: center;
+  padding: 40px;
+}
+
+h1 {
+  color: red;
+  margin-bottom: 10px;
+}
+
+.movies {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.movie {
+  background: #222;
+  padding: 20px;
+  border-radius: 8px;
+  width: 150px;
+}
