@@ -2,23 +2,22 @@ name: Netflix CI-CD Deploy
 
 on:
   workflow_dispatch:
-  
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-south-1
+      AWS_REGION: us-east-1
       EKS_CLUSTER_NAME: netflix-eks
       ECR_REPOSITORY: netflix-clone
 
     steps:
-    # 1️⃣ Checkout source code
+    # 1️⃣ Checkout code
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2️⃣ Configure AWS credentials
+    # 2️⃣ AWS credentials
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -26,17 +25,16 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
-    # 3️⃣ Login to Amazon ECR
+    # 3️⃣ Login to ECR
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
 
     # 4️⃣ Build Docker image
     - name: Build Docker Image
       run: |
-        cd app
         docker build -t netflix-clone:latest .
 
-    # 5️⃣ Tag & Push image to ECR
+    # 5️⃣ Tag & Push image
     - name: Push Image to ECR
       run: |
         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -47,14 +45,14 @@ jobs:
 
         echo "ECR_URI=${ECR_URI}" >> $GITHUB_ENV
 
-    # 6️⃣ Configure kubectl for EKS
+    # 6️⃣ Update kubeconfig
     - name: Update kubeconfig
       run: |
         aws eks update-kubeconfig \
           --region ${AWS_REGION} \
           --name ${EKS_CLUSTER_NAME}
 
-    # 7️⃣ Deploy application to EKS
+    # 7️⃣ Deploy to EKS
     - name: Deploy to EKS
       run: |
         sed -i "s|<ECR_URI>|${ECR_URI}|g" k8s/deployment.yaml
