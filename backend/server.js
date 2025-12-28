@@ -11,8 +11,8 @@ const users = [
   { email: "user@netflix.com", password: "user123", name: "Normal User" }
 ];
 
-// Login API
-app.post("/login", (req, res) => {
+// ✅ LOGIN API (MATCHES INGRESS + FRONTEND)
+app.post("/api/login", (req, res) => {
   const { email, password } = req.body;
 
   const user = users.find(
@@ -35,6 +35,6 @@ app.get("/health", (req, res) => {
 });
 
 const PORT = 5000;
-app.listen(PORT, () =>
-  console.log(`Backend running on port ${PORT}`)
-);
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});
